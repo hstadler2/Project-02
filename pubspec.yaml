@@ -42,7 +42,7 @@ dependencies:
   http: ^1.3.0
 
   # Charts for price history
-  charts_flutter: ^0.12.0
+  fl_chart: ^0.71.0
 
   # WebView to display news articles
   webview_flutter: ^4.0.12

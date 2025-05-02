@@ -1,4 +1,3 @@
-// lib/screens/stock_search.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,7 +10,7 @@ class StockSearch extends StatefulWidget {
 
 class _StockSearchState extends State<StockSearch> {
   final _controller = TextEditingController();
-  final user = FirebaseAuth.instance.currentUser;
+  final _user = FirebaseAuth.instance.currentUser;
   List<Map<String, String>> _results = [];
   bool _isLoading = false;
   Set<String> _watchlist = {};
@@ -19,10 +18,11 @@ class _StockSearchState extends State<StockSearch> {
   @override
   void initState() {
     super.initState();
-    if (user != null) {
+    if (_user != null) {
+      // Keep track of which symbols are already in Firestore
       FirebaseFirestore.instance
           .collection('users')
-          .doc(user!.uid)
+          .doc(_user!.uid)
           .collection('watchlist')
           .snapshots()
           .listen((snap) {
@@ -34,13 +34,15 @@ class _StockSearchState extends State<StockSearch> {
   }
 
   Future<void> _search() async {
-    final q = _controller.text.trim();
-    if (q.isEmpty) return;
+    final query = _controller.text.trim();
+    if (query.isEmpty) return;
+    // close keyboard
+    FocusScope.of(context).unfocus();
     setState(() {
       _isLoading = true;
-      _results = [];
+      _results.clear();
     });
-    final list = await StockApi.search(q);
+    final list = await StockApi.search(query);
     setState(() {
       _results = list;
       _isLoading = false;
@@ -50,7 +52,7 @@ class _StockSearchState extends State<StockSearch> {
   void _toggleWatchlist(String symbol) {
     final ref = FirebaseFirestore.instance
         .collection('users')
-        .doc(user!.uid)
+        .doc(_user!.uid)
         .collection('watchlist')
         .doc(symbol);
     if (_watchlist.contains(symbol)) {
@@ -63,9 +65,11 @@ class _StockSearchState extends State<StockSearch> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Search Stocks')),
+      appBar: AppBar(
+        title: Text('Search Stocks'),
+      ),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             TextField(
@@ -76,13 +80,21 @@ class _StockSearchState extends State<StockSearch> {
               ),
               onSubmitted: (_) => _search(),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
+            // **Wire the button up to call _search()**
             _isLoading
                 ? CircularProgressIndicator()
-                : ElevatedButton(onPressed: _search, child: Text('Search')),
-            SizedBox(height: 12),
+                : ElevatedButton(
+              onPressed: _search,
+              child: Text('Search'),
+            ),
+            const SizedBox(height: 12),
             Expanded(
-              child: ListView.builder(
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : _results.isEmpty
+                  ? Center(child: Text('No results'))
+                  : ListView.builder(
                 itemCount: _results.length,
                 itemBuilder: (ctx, i) {
                   final sym = _results[i]['symbol']!;
@@ -92,8 +104,9 @@ class _StockSearchState extends State<StockSearch> {
                     title: Text(sym),
                     subtitle: Text(desc),
                     trailing: IconButton(
-                      icon:
-                      Icon(inList ? Icons.remove_circle : Icons.add_circle),
+                      icon: Icon(inList
+                          ? Icons.remove_circle
+                          : Icons.add_circle),
                       onPressed: () => _toggleWatchlist(sym),
                     ),
                   );

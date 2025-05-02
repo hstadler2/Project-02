@@ -13,7 +13,15 @@ class WatchlistDashboard extends StatelessWidget {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: Text('Your Watchlist')),
+      appBar: AppBar(
+        title: Text('Your Watchlist'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.search_rounded),
+            onPressed: () => Navigator.of(context).pushNamed('/search'),
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')

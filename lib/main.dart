@@ -10,6 +10,7 @@ import 'screens/stock_detail.dart';
 import 'screens/news_feed.dart';
 import 'screens/profile_settings.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(

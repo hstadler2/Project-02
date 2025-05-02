@@ -1,16 +1,22 @@
-// lib/services/stock_api.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:charts_flutter/flutter.dart' as charts;
 
-
-const _finnhubKey = 'd0ah87hr01qm3l9ldmmgd0ah87hr01qm3l9ldmn0';
+/// Simple DTO for historical price points
+class TimeSeriesPrice {
+  final DateTime time;
+  final double price;
+  TimeSeriesPrice(this.time, this.price);
+}
 
 class StockApi {
-  /// Search endpoint
+
+  static const _apiKey = 'd0ah87hr01qm3l9ldmmgd0ah87hr01qm3l9ldmn0';
+
+  /// Search for symbols/descriptions
   static Future<List<Map<String, String>>> search(String query) async {
     final url = Uri.parse(
-        'https://finnhub.io/api/v1/search?q=$query&token=$_finnhubKey');
+      'https://finnhub.io/api/v1/search?q=$query&token=$_apiKey',
+    );
     final resp = await http.get(url);
     if (resp.statusCode != 200) return [];
     final body = json.decode(resp.body);
@@ -18,29 +24,34 @@ class StockApi {
     return results.map<Map<String, String>>((item) {
       return {
         'symbol': item['symbol'] as String,
-        'description': item['description'] as String? ?? '',
+        'description': (item['description'] as String?) ?? '',
       };
     }).toList();
   }
 
-  /// Current quote (closing) price
+  /// Get current quote (last close)
   static Future<double?> getQuote(String symbol) async {
     final url = Uri.parse(
-        'https://finnhub.io/api/v1/quote?symbol=$symbol&token=$_finnhubKey');
+      'https://finnhub.io/api/v1/quote?symbol=$symbol&token=$_apiKey',
+    );
     final resp = await http.get(url);
     if (resp.statusCode != 200) return null;
     final body = json.decode(resp.body);
     return (body['c'] as num?)?.toDouble();
   }
 
-  /// Historical candles for the last 30 days
+  /// Fetch the last 30 days of daily closes
   static Future<List<TimeSeriesPrice>> getHistorical(String symbol) async {
     final now = DateTime.now();
     final from = now.subtract(Duration(days: 30)).millisecondsSinceEpoch ~/ 1000;
     final to = now.millisecondsSinceEpoch ~/ 1000;
     final url = Uri.parse(
-      'https://finnhub.io/api/v1/stock/candle?symbol=$symbol'
-          '&resolution=D&from=$from&to=$to&token=$_finnhubKey',
+      'https://finnhub.io/api/v1/stock/candle'
+          '?symbol=$symbol'
+          '&resolution=D'
+          '&from=$from'
+          '&to=$to'
+          '&token=$_apiKey',
     );
     final resp = await http.get(url);
     if (resp.statusCode != 200) return [];
@@ -54,11 +65,4 @@ class StockApi {
       );
     });
   }
-}
-
-/// Simple time-series data class for charts_flutter
-class TimeSeriesPrice {
-  final DateTime time;
-  final double price;
-  TimeSeriesPrice(this.time, this.price);
 }
