@@ -22,7 +22,7 @@ class _OnboardingLoginState extends State<OnboardingLogin> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      Navigator.of(context).pushReplacementNamed('/watchlist'); // move on
+      Navigator.of(context).pushReplacementNamed('/watchlist');
     } on FirebaseAuthException catch (e) {
       setState(() => _error = e.message);
     } finally {
@@ -58,11 +58,11 @@ class _OnboardingLoginState extends State<OnboardingLogin> {
                 ? CircularProgressIndicator()
                 : ElevatedButton(
               onPressed: _login,
-              child: const Text('Login'),
+              child: Text('Login'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pushNamed('/signup'),
-              child: const Text('Sign Up'),
+              child: Text('Sign Up'),
             ),
           ],
         ),
