@@ -1,3 +1,5 @@
+// ignore_for_file: use_key_in_widget_constructors
+
 import 'package:flutter/material.dart';
 
 class NewsFeed extends StatelessWidget {
@@ -5,13 +7,13 @@ class NewsFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Market News'),
+        title: const Text('Market News'),
       ),
       body: ListView.builder(
         itemCount: 5, // dummy count
         itemBuilder: (context, index) => ListTile(
-          title: Text('News headline #\$index'),
-          subtitle: Text('Snippet of the article...'),
+          title: const Text('News headline #\$index'),
+          subtitle: const Text('Snippet of the article...'),
           onTap: () {}, // TODO: open article
         ),
       ),

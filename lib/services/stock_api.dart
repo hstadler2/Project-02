@@ -9,7 +9,6 @@ class TimeSeriesPrice {
 }
 
 class StockApi {
-
   static const _apiKey = 'd0ah87hr01qm3l9ldmmgd0ah87hr01qm3l9ldmn0';
 
   /// Search for symbols/descriptions
@@ -41,23 +40,40 @@ class StockApi {
   }
 
   /// Fetch the last 30 days of daily closes
-  static Future<List<TimeSeriesPrice>> getHistorical(String symbol) async {
-    final now = DateTime.now();
-    final from = now.subtract(Duration(days: 30)).millisecondsSinceEpoch ~/ 1000;
-    final to = now.millisecondsSinceEpoch ~/ 1000;
+  static Future<List<TimeSeriesPrice>> getHistorical(String symbol) =>
+      getHistoricalRange(
+        symbol,
+        from: DateTime.now().subtract(const Duration(days: 30)),
+        to: DateTime.now(),
+      );
+
+  /// Fetch daily closes between two dates (inclusive)
+  static Future<List<TimeSeriesPrice>> getHistoricalRange(
+      String symbol, {
+        required DateTime from,
+        required DateTime to,
+      }) async {
+    final fromEpoch = from.millisecondsSinceEpoch ~/ 1000;
+    final toEpoch   = to.millisecondsSinceEpoch   ~/ 1000;
     final url = Uri.parse(
       'https://finnhub.io/api/v1/stock/candle'
           '?symbol=$symbol'
           '&resolution=D'
-          '&from=$from'
-          '&to=$to'
+          '&from=$fromEpoch'
+          '&to=$toEpoch'
           '&token=$_apiKey',
     );
+
     final resp = await http.get(url);
     if (resp.statusCode != 200) return [];
     final body = json.decode(resp.body);
-    final times = (body['t'] as List).cast<int>();
+
+    // Only proceed on success
+    if (body['s'] != 'ok') return [];
+
+    final times  = (body['t'] as List).cast<int>();
     final closes = (body['c'] as List).cast<num>();
+
     return List.generate(times.length, (i) {
       return TimeSeriesPrice(
         DateTime.fromMillisecondsSinceEpoch(times[i] * 1000),

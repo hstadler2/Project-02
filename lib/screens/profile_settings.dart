@@ -5,9 +5,9 @@ class ProfileSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile & Settings'),
+        title: const Text('Profile & Settings'),
       ),
-      body: Center(
+      body: const Center(
         child: Text('Sign in/out and preferences go here'), // TODO: Firebase Auth
       ),
     );

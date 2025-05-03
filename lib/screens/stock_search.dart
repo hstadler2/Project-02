@@ -5,7 +5,7 @@ import '../services/stock_api.dart';
 
 class StockSearch extends StatefulWidget {
   @override
-  _StockSearchState createState() => _StockSearchState();
+    _StockSearchState createState() => _StockSearchState();
 }
 
 class _StockSearchState extends State<StockSearch> {
@@ -19,10 +19,9 @@ class _StockSearchState extends State<StockSearch> {
   void initState() {
     super.initState();
     if (_user != null) {
-      // Keep track of which symbols are already in Firestore
       FirebaseFirestore.instance
           .collection('users')
-          .doc(_user!.uid)
+          .doc(_user.uid)
           .collection('watchlist')
           .snapshots()
           .listen((snap) {
@@ -36,7 +35,6 @@ class _StockSearchState extends State<StockSearch> {
   Future<void> _search() async {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
-    // close keyboard
     FocusScope.of(context).unfocus();
     setState(() {
       _isLoading = true;
@@ -65,35 +63,32 @@ class _StockSearchState extends State<StockSearch> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Search Stocks'),
-      ),
+      appBar: AppBar(title: const Text('Search Stocks')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             TextField(
               controller: _controller,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Enter symbol or company name',
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _search(),
             ),
             const SizedBox(height: 12),
-            // **Wire the button up to call _search()**
             _isLoading
-                ? CircularProgressIndicator()
+                ? const CircularProgressIndicator()
                 : ElevatedButton(
               onPressed: _search,
-              child: Text('Search'),
+              child: const Text('Search'),
             ),
             const SizedBox(height: 12),
             Expanded(
               child: _isLoading
-                  ? Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator())
                   : _results.isEmpty
-                  ? Center(child: Text('No results'))
+                  ? const Center(child: Text('No results'))
                   : ListView.builder(
                 itemCount: _results.length,
                 itemBuilder: (ctx, i) {
