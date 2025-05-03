@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Profile & Settings'),
-      ),
+      appBar: AppBar(title: Text('Profile & Settings')),
       body: Center(
-        child: Text('Sign in/out and preferences go here'), // TODO: Firebase Auth
+        child: ElevatedButton(
+          child: Text('Sign Out'),
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+        ),
       ),
     );
   }

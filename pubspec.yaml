@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  webview_flutter: ^4.7.0
   cupertino_icons: ^1.0.2
 
   # Firebase (all on the 3.x and 5.x lines)
@@ -45,7 +45,7 @@ dependencies:
   fl_chart: ^0.71.0
 
   # WebView to display news articles
-  webview_flutter: ^4.0.12
+  # webview_flutter: ^4.0.12
 
   # Date/number formatting
   intl: ^0.17.0

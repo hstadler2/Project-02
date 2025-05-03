@@ -18,9 +18,20 @@ class _OnboardingLoginState extends State<OnboardingLogin> {
       _error = null;
     });
     try {
+      if (_emailController.text.isEmpty ||
+          !_emailController.text.contains('@')) {
+        throw FirebaseAuthException(message: 'Enter a valid email', code: '');
+      }
+      if (_passwordController.text.length < 6) {
+        throw FirebaseAuthException(
+            message: 'Password must be at least 6 characters', code: '');
+      }
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login successful!')),
       );
       Navigator.of(context).pushReplacementNamed('/watchlist');
     } on FirebaseAuthException catch (e) {
@@ -43,6 +54,7 @@ class _OnboardingLoginState extends State<OnboardingLogin> {
             TextField(
               controller: _emailController,
               decoration: InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
             ),
             TextField(
               controller: _passwordController,
