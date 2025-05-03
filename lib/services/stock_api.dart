@@ -9,12 +9,15 @@ class TimeSeriesPrice {
 }
 
 class StockApi {
-  static const _apiKey = 'd0ah87hr01qm3l9ldmmgd0ah87hr01qm3l9ldmn0';
+  // Used for symbol search
+  static const _finnKey = 'd0ah87hr01qm3l9ldmmgd0ah87hr01qm3l9ldmn0';
+  // Vantage key
+  static const _avKey  = 'EOZ6Z0BVW221C5BK';
 
-  /// Search for symbols/descriptions
+  /// Search for symbols/descriptions via Finnhub
   static Future<List<Map<String, String>>> search(String query) async {
     final url = Uri.parse(
-      'https://finnhub.io/api/v1/search?q=$query&token=$_apiKey',
+      'https://finnhub.io/api/v1/search?q=$query&token=$_finnKey',
     );
     final resp = await http.get(url);
     if (resp.statusCode != 200) return [];
@@ -28,57 +31,47 @@ class StockApi {
     }).toList();
   }
 
-  /// Get current quote (last close)
+  /// Get current quote via Alpha Vantage GLOBAL_QUOTE
   static Future<double?> getQuote(String symbol) async {
     final url = Uri.parse(
-      'https://finnhub.io/api/v1/quote?symbol=$symbol&token=$_apiKey',
+      'https://www.alphavantage.co/query'
+          '?function=GLOBAL_QUOTE'
+          '&symbol=$symbol'
+          '&apikey=$_avKey',
     );
     final resp = await http.get(url);
     if (resp.statusCode != 200) return null;
     final body = json.decode(resp.body);
-    return (body['c'] as num?)?.toDouble();
+    final quote = body['Global Quote']?['05. price'];
+    return quote != null ? double.tryParse(quote) : null;
   }
 
-  /// Fetch the last 30 days of daily closes
-  static Future<List<TimeSeriesPrice>> getHistorical(String symbol) =>
-      getHistoricalRange(
-        symbol,
-        from: DateTime.now().subtract(const Duration(days: 30)),
-        to: DateTime.now(),
-      );
-
-  /// Fetch daily closes between two dates (inclusive)
-  static Future<List<TimeSeriesPrice>> getHistoricalRange(
-      String symbol, {
-        required DateTime from,
-        required DateTime to,
-      }) async {
-    final fromEpoch = from.millisecondsSinceEpoch ~/ 1000;
-    final toEpoch   = to.millisecondsSinceEpoch   ~/ 1000;
+  /// Fetch last ~30 trading days of closes via Alpha Vantage TIME_SERIES_DAILY
+  static Future<List<TimeSeriesPrice>> getHistorical(String symbol) async {
     final url = Uri.parse(
-      'https://finnhub.io/api/v1/stock/candle'
-          '?symbol=$symbol'
-          '&resolution=D'
-          '&from=$fromEpoch'
-          '&to=$toEpoch'
-          '&token=$_apiKey',
+      'https://www.alphavantage.co/query'
+          '?function=TIME_SERIES_DAILY'
+          '&symbol=$symbol'
+          '&apikey=$_avKey',
     );
-
     final resp = await http.get(url);
     if (resp.statusCode != 200) return [];
     final body = json.decode(resp.body);
+    final daily = body['Time Series (Daily)'] as Map<String, dynamic>?;
+    if (daily == null) return [];
 
-    // Only proceed on success
-    if (body['s'] != 'ok') return [];
+    // Parse into a list, sort by date ascending:
+    final entries = daily.entries
+        .map((e) {
+      final dt = DateTime.parse(e.key);
+      final close = double.tryParse(e.value['4. close']) ?? 0;
+      return TimeSeriesPrice(dt, close);
+    })
+        .toList()
+      ..sort((a, b) => a.time.compareTo(b.time));
 
-    final times  = (body['t'] as List).cast<int>();
-    final closes = (body['c'] as List).cast<num>();
-
-    return List.generate(times.length, (i) {
-      return TimeSeriesPrice(
-        DateTime.fromMillisecondsSinceEpoch(times[i] * 1000),
-        closes[i].toDouble(),
-      );
-    });
+    // Take only the last 30 days (or fewer if <30 available)
+    final start = entries.length > 30 ? entries.length - 30 : 0;
+    return entries.sublist(start);
   }
 }

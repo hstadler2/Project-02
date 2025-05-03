@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../services/stock_api.dart';
 
 class StockDetail extends StatefulWidget {
   final String symbol;
-  const StockDetail({required this.symbol});
+  const StockDetail({Key? key, required this.symbol}) : super(key: key);
 
   @override
   _StockDetailState createState() => _StockDetailState();
@@ -24,84 +23,51 @@ class _StockDetailState extends State<StockDetail> {
   }
 
   Future<void> _loadData() async {
-    final uid    = FirebaseAuth.instance.currentUser!.uid;
-    final symbol = widget.symbol.toUpperCase();
-
-    // 1) Load cached history from Firestore
-    final localSnap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('historical')
-        .doc(symbol)
-        .collection('prices')
-        .orderBy(FieldPath.documentId)
-        .get();
-
-    final local = localSnap.docs.map((d) {
-      final date = DateTime.parse(d.id);
-      return TimeSeriesPrice(
-        date,
-        (d.data()['price'] as num).toDouble(),
-      );
-    }).toList();
-
-    // 2) Decide where to fetch from
-    DateTime from;
-    if (local.isNotEmpty) {
-      from = local.last.time.add(const Duration(days: 1));
-    } else {
-      from = DateTime.now().subtract(const Duration(days: 30));
-    }
-
-    // 3) Fetch missing slice from Finnhub
-    final missing = await StockApi.getHistoricalRange(
-      symbol,
-      from: from,
-      to: DateTime.now(),
-    );
-
-    // 4) Batch-write missing to Firestore
-    final batch = FirebaseFirestore.instance.batch();
-    final pricesCol = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('historical')
-        .doc(symbol)
-        .collection('prices');
-
-    for (final dp in missing) {
-      final id = dp.time.toIso8601String().substring(0, 10); // “YYYY-MM-DD”
-      batch.set(pricesCol.doc(id), {
-        'price': dp.price,
-        'fetchedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-
-    // 5) Fetch current quote
-    final quote = await StockApi.getQuote(symbol);
-
-    // 6) Merge + render
+    final hist = await StockApi.getHistorical(widget.symbol);
+    final quote = await StockApi.getQuote(widget.symbol);
     setState(() {
-      _history      = [...local, ...missing];
+      _history = hist;
       _currentPrice = quote;
-      _loading      = false;
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final symbol = widget.symbol.toUpperCase();
-
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('\$$symbol')),
+        appBar: AppBar(title: Text('\$${widget.symbol.toUpperCase()}')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
+    if (_history.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text('\$${widget.symbol.toUpperCase()}')),
+        body: const Center(child: Text('No historical data available')),
+      );
+    }
+
+    // Map our history into FlSpots
+    final spots = List<FlSpot>.generate(
+      _history.length,
+          (i) => FlSpot(i.toDouble(), _history[i].price),
+    );
+
+    // Prepare X-axis date labels (5 evenly spaced points)
+    const labelCount = 5;
+    final step = (_history.length - 1) / (labelCount - 1);
+    final dateLabels = List<String>.generate(labelCount, (i) {
+      final dt = _history[(step * i).round()].time;
+      return '${dt.month}/${dt.day}';
+    });
+
+    // Find min/max for Y bounds
+    final prices = _history.map((e) => e.price);
+    final minY = prices.reduce((a, b) => a < b ? a : b);
+    final maxY = prices.reduce((a, b) => a > b ? a : b);
 
     return Scaffold(
-      appBar: AppBar(title: Text('\$$symbol')),
+      appBar: AppBar(title: Text('\$${widget.symbol.toUpperCase()}')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -109,48 +75,75 @@ class _StockDetailState extends State<StockDetail> {
             // Current price
             Text(
               _currentPrice != null
-                  ? '\$${_currentPrice!.toStringAsFixed(2)}'
+                  ? NumberFormat.simpleCurrency().format(_currentPrice)
                   : '–',
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 16),
-
-            // Chart or “no data”
+            // The polished line chart
             Expanded(
-              child: _history.isEmpty
-                  ? const Center(child: Text('No historical data available'))
-                  : LineChart(
+              child: LineChart(
                 LineChartData(
+                  minX: 0,
+                  maxX: (_history.length - 1).toDouble(),
+                  minY: minY * 0.98,
+                  maxY: maxY * 1.02,
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: (maxY - minY) / 4,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: Colors.grey.shade300,
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
                   lineBarsData: [
                     LineChartBarData(
-                      spots: _history.map((dp) {
-                        return FlSpot(
-                          dp.time.millisecondsSinceEpoch.toDouble(),
-                          dp.price,
-                        );
-                      }).toList(),
+                      spots: spots,
                       isCurved: true,
-                      dotData: const FlDotData(show: false),
+                      color: Theme.of(context).primaryColor,
+                      barWidth: 2,
+                      dotData: FlDotData(show: false),
                     ),
                   ],
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        // interval ≥1
-                        interval: (_history.length / 5).clamp(1, double.infinity),
-                        getTitlesWidget: (value, _) {
-                          final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-                          return Text('${date.month}/${date.day}');
+                        interval: step,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.round();
+                          final labelIx = (idx / step).round();
+                          if (labelIx >= 0 && labelIx < dateLabels.length) {
+                            return Text(
+                              dateLabels[labelIx],
+                              style: const TextStyle(fontSize: 12),
+                            );
+                          }
+                          return const SizedBox.shrink();
                         },
                       ),
                     ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: (maxY - minY) / 4,
+                        reservedSize: 60,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            NumberFormat.simpleCurrency().format(value),
+                            style: const TextStyle(fontSize: 12),
+                          );
+                        },
+                      ),
                     ),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
                 ),
               ),
             ),
