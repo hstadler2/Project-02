@@ -2,6 +2,8 @@
 
 A new Flutter project.
 
+Moved partners' code from master branch to mastercopy branch, but ultimately used it to get to the final version of the app in the master branch.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
